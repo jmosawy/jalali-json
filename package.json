@@ -1,0 +1,23 @@
+{
+  "name": "jalali-json",
+  "version": "1.0.0",
+  "description": "Export Jalali calendar as a JSON file.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": {
+    "name": "Jeff Mosawy",
+    "email": "jmosawy@gmail.com",
+    "url": "http://jmosawy.com"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^0.18.0",
+    "cheerio": "^1.0.0-rc.2",
+    "form-data": "^2.3.2",
+    "persianjs": "^0.3.0",
+    "querystring": "^0.2.0"
+  }
+}
