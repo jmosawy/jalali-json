@@ -1,17 +1,28 @@
 const cheerio = require('cheerio');
 const axios = require('axios');
-const persian = require('./persianjs');
 const querystring = require('querystring');
+const fs = require('fs');
+const whily = require('whily').while;
+const f2e = require('./f2e');
+
 const URL = 'http://www.time.ir';
 const YEAR = 1397;
-const fs = require('fs');
+let arr = [];
 
-let arr = require('./data');
-let promises = [];
-
-function f2eConvertor(fNumber) {
-  return fNumber ? parseInt(persian(fNumber).toEnglishNumber().toString()) : null;
-}
+const monthsOrder = {
+  'فروردین': 1,
+  'اردیبهشت': 2,
+  'خرداد': 3,
+  'تیر': 4,
+  'مرداد': 5,
+  'شهریور': 6,
+  'مهر': 7,
+  'آبان': 8,
+  'آذر': 9,
+  'دی': 10,
+  'بهمن': 11,
+  'اسفند': 12
+};
 
 function getHTML(year, month) {
   return axios.post(URL, querystring.stringify({
@@ -29,7 +40,7 @@ function getEvents($, day) {
   const eventsList = $('.list-unstyled')
     .find('li')
     .filter(function (i, ele) {
-      return f2eConvertor($(this).find('span').first().text().split(' ')[0]) === day;
+      return f2e($(this).find('span').first().text().split(' ')[0]) === day;
     });
 
   if (eventsList.length > 0) {
@@ -38,27 +49,38 @@ function getEvents($, day) {
     });
   }
   return events;
-}
+};
 
+function getMonthData(month) {
+  return getHTML(YEAR, month)
+    .then((data) => {
+      const $ = cheerio.load(data.data);
+      return Promise.resolve($);
+    })
+    .then(($) => {
+      const monthName = $('span.selectMonth').text();
+      arr.push({
+        name: monthName,
+        days: {},
+      });
+      monthIndex = arr.findIndex(month => month.name === monthName);
+      $('.dayList>div').not('.disabled').find('.jalali').each(function (i, ele) {
+        arr[monthIndex].days[i + 1] = getEvents($, i + 1);
+      });
+    });
+};
 
-promises.push(getHTML(YEAR, 12)
-  .then(data => {
-    const $ = cheerio.load(data.data);
-    return Promise.resolve($);
+let index = 0;
+whily(() => {
+  index += 2;
+  return (index <= 12);
+}, () => {
+  return Promise.all([getMonthData(index - 1), getMonthData(index)]);
+})
+  .then(() => {
+    arr.sort((a, b) => monthsOrder[a.name] - monthsOrder[b.name]);
+    return Promise.resolve();
   })
-  .then($ => {
-    const monthName = $('span.selectMonth').text();
-    arr.push({
-      name: monthName,
-      days: {},
-    });
-    monthIndex = arr.findIndex(month => month.name === monthName);
-
-    $('.dayList>div').not('.disabled').find('.jalali').each(function (i, ele) {
-      arr[monthIndex].days[i + 1] = getEvents($, i + 1);
-    });
-  }));
-
-Promise.all(promises).then(() => {
-  fs.writeFileSync('./data.json', JSON.stringify(arr), 'UTF-8');
-});
+  .then(() => {
+    fs.writeFileSync('./data.json', JSON.stringify(arr), 'UTF-8');
+  });
